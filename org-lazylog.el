@@ -8,7 +8,8 @@
 (require 'cl-lib)
 
 ;;(defvar org-lazylog-header)
-(defvar org-lazylog-file "~/test-logger.org")
+(defvar org-lazylog-header nil)
+(defvar org-lazylog-file (concat org-directory "/lazylog.org"))
 (defvar org-lazylog-id-locations nil)
 (defvar org-lazylog-templates '(("s" "silent" plain
                                (file+function org-lazylog-file org-lazylog-write-datetree)
@@ -19,6 +20,8 @@
 (defvar org-lazylog-todo-ignore-keywords nil)
 (defvar org-lazylog-todo-format "[[id:%%s][%%s/%%s]] (-> %s)")
 (defvar org-lazylog-command-targets nil)
+(defvar org-lazylog-command-log "Command executed")
+(defvar org-lazylog-save-log "File saved")
 
 (defun org-lazylog-format-header (&optional format)
   "."
@@ -36,7 +39,10 @@
 
 (defun org-lazylog-extract-target (string)
   "."
-  (or (and (string-match "\\[\\[id:.+\\]\\]" string)
+  (or (and (or (string-match "\\[\\[id:.+\\]\\]" string)
+               (string-match (format "%s.+$" org-lazylog-command-log) string)
+               (string-match (format "%s.+$" org-lazylog-save-log) string)
+               )
            (match-string 0 string))
       string))
 
@@ -45,8 +51,9 @@
   (org-datetree-find-date-create date)
   (let ((d (org-current-level)))
     (org-end-of-subtree)
-    (if (string-match-p (org-lazylog-extract-target org-lazylog-header)
-                        (org-lazylog-extract-target (nth 4 (org-heading-components))))
+    ;;(message "DEBUG: %s <=> %s"  (org-lazylog-extract-target org-lazylog-header) (org-lazylog-extract-target (nth 4 (org-heading-components))))
+    (if (string= (org-lazylog-extract-target org-lazylog-header)
+                 (org-lazylog-extract-target (nth 4 (org-heading-components))))
         nil
       (unless (bolp) (insert "\n"))
       (insert (make-string (+ d 1) ?*) " ")
@@ -94,17 +101,23 @@
   "."
   (let ((command (nth 1 args)))
     (if (member command org-lazylog-command-targets)
-        (org-lazylog-capture-message (format "Command exected: %s" command))))
+        (org-lazylog-capture-message (format "%s: %s" org-lazylog-command-log command))))
   (apply f args))
 
-(defun org-lazylog-save-logger ()
+(defun org-lazylog-save-logger (f &rest args)
   "."
-  (if (string= buffer-file-name (expand-file-name org-lazylog-file))
-      (message "not logged: %s %s" org-lazylog-file buffer-file-name)
-    (message "logged: %s %s" org-lazylog-file buffer-file-name)
+  (interactive)
+  (if (interactive-p)
+      (progn
+        (if (string= buffer-file-name (expand-file-name org-lazylog-file))
+            (message "not logged: %s %s" org-lazylog-file buffer-file-name)
+          (org-lazylog-capture-message (format "%s: %s" org-lazylog-save-log buffer-file-name)))
+        (call-interactively (ad-get-orig-definition 'save-buffer)))
+    (apply f args)
     ))
 
 ;; lazylog when saving file
+(advice-add 'save-buffer :around 'org-lazylog-save-logger)
 
 ;; lazylog when changing todo state
 (add-hook 'org-after-todo-state-change-hook 'org-lazylog-todo-logger)
@@ -118,7 +131,6 @@
 (add-hook 'org-capture-prepare-finalize-hook 'org-lazylog-capture-entry)
 
 ;; lazylog when executing specific commands
-(setq org-lazylog-command-targets '("mu4e" "erc"))
 (advice-add 'execute-extended-command :around 'org-lazylog-command-logger)
 
 (provide 'org-lazylog)
