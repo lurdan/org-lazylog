@@ -79,7 +79,11 @@
 (defun org-lazylog-capture-entry (&optional header annotate key)
   "."
   (interactive)
-  (unless (string= (buffer-file-name) (expand-file-name org-lazylog-file))
+  (unless (or (string= (buffer-file-name) (expand-file-name org-lazylog-file))
+              ;; ignore org-roam to avoid corrupt capturing
+              (if (featurep 'org-roam)
+                  (org-roam-capture-p))
+              )
     (let ((org-capture-templates org-lazylog-templates)
           (org-capture-prepare-finalize-hook (remove 'org-lazylog-capture-entry org-capture-prepare-finalize-hook))
           (org-lazylog-header (org-lazylog-format-header header))
