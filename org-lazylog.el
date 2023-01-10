@@ -12,16 +12,17 @@
 (defvar org-lazylog-file (concat org-directory "/lazylog.org"))
 (defvar org-lazylog-id-locations nil)
 (defvar org-lazylog-templates '(("s" "silent" plain
-                               (file+function org-lazylog-file org-lazylog-write-datetree)
-                               "%(org-lazylog-annotate)" :immediate-finish t)
-                              ("p" "prompt" plain
-                               (file+function org-lazylog-file org-lazylog-write-datetree)
-                               "%(org-lazylog-annotate)")))
+                                 (file+function org-lazylog-file org-lazylog-write-datetree)
+                                 "%(org-lazylog-annotate)" :immediate-finish t)
+                                ("p" "prompt" plain
+                                 (file+function org-lazylog-file org-lazylog-write-datetree)
+                                 "%(org-lazylog-annotate)")))
 (defvar org-lazylog-todo-ignore-keywords nil)
 (defvar org-lazylog-todo-format "[[id:%%s][%%s/%%s]] (-> %s)")
 (defvar org-lazylog-command-targets nil)
 (defvar org-lazylog-command-log "Command executed")
 (defvar org-lazylog-save-log "File saved")
+(defvar org-lazylog-reverse-datetree nil)
 
 (defun org-lazylog-format-header (&optional format)
   "."
@@ -48,9 +49,14 @@
 
 (cl-defun org-lazylog-write-datetree (&optional (date (calendar-current-date)))
   "."
-  (org-datetree-find-date-create date)
+  (if org-lazylog-reverse-datetree
+      (org-reverse-datetree-goto-date-in-file)
+    (org-datetree-find-date-create date)
+    )
   (let ((d (org-current-level)))
-    (org-end-of-subtree)
+    (if org-lazylog-reverse-datetree
+        (org-goto-first-child)
+      (org-end-of-subtree))
     ;;(message "DEBUG: %s <=> %s"  (org-lazylog-extract-target org-lazylog-header) (org-lazylog-extract-target (nth 4 (org-heading-components))))
     (if (string= (org-lazylog-extract-target org-lazylog-header)
                  (org-lazylog-extract-target (nth 4 (org-heading-components))))
